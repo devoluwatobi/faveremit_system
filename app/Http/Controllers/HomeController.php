@@ -12,31 +12,35 @@ use App\Models\country;
 use App\Models\Service;
 use App\Models\Utility;
 use App\Models\GiftCard;
+use App\Models\CardRange;
+use App\Models\PromoCode;
 use App\Models\Currencies;
+use App\Models\UserDevice;
+use App\Models\BankDetails;
 use App\Models\Transaction;
 use Facade\FlareClient\Api;
 use App\Models\RewardWallet;
 use App\Services\FCMService;
 use Illuminate\Http\Request;
+use App\Models\SpaceTransfer;
 use App\Models\GeneralCountry;
 use App\Models\BannerPromotion;
 use App\Models\BillTransaction;
 use App\Models\FundTransaction;
-use App\Models\GiftCardsCountry;
 use App\Models\GiftCardCategory;
-use App\Models\CardRange;
-use App\Models\PromoCode;
+use App\Models\GiftCardsCountry;
 use App\Models\MapleVirtualCard;
+use App\Models\BettingTransaction;
 use App\Models\WalletTransactions;
 use Illuminate\Support\Facades\DB;
+use App\Models\FundTransferRequest;
 use App\Models\GiftCardTransaction;
+use function Laravel\Prompts\select;
 use App\Models\BuyGiftCardTransaction;
+
+use App\Models\RewardWalletTransaction;
 use App\Http\Controllers\CustomNotificationController;
 use App\Http\Controllers\UserCryptoWalletTransactionController;
-use App\Models\BankDetails;
-use App\Models\UserDevice;
-
-use function Laravel\Prompts\select;
 
 class HomeController extends Controller
 {
@@ -301,13 +305,54 @@ class HomeController extends Controller
     {
         $user = auth('api')->user();
 
-
         $giftData = GiftCardTransaction::where('user_id', $user->id)->get()->sortByDesc('created_at');
         $utiData = BillTransaction::where('user_id', $user->id)->get()->sortByDesc('created_at');
         $walData = WalletTransactions::where('user_id', $user->id)->get()->sortByDesc('created_at');
+
+        $betData = BettingTransaction::where('user_id', $user->id)->get()->sortByDesc('created_at');
+        $trfData = FundTransferRequest::where('user_id', $user->id)->orWhere('account_no', $user->email)->orWhere('account_no', $user->username)->get()->sortByDesc('created_at');
+        $trf2Data = SpaceTransfer::where('account_no', $user->email)->orWhere('account_no', $user->username)->get()->sortByDesc('created_at');
+
         $buyData = BuyGiftCardTransaction::where('user_id', $user->id)->get()->sortByDesc('created_at');
         $fundData = FundTransaction::where('user_id', $user->id)->get()->sortByDesc('created_at');
 
+
+        foreach ($fundData as $walletTransaction) {
+            switch ($walletTransaction->status) {
+                case 0:
+                    $status = 'Pending';
+                    break;
+                case 1:
+                    $status = 'Completed';
+                    break;
+                case 2:
+                    $status = 'Failed';
+                    break;
+                case 3:
+                    $status = 'Cancelled';
+                    break;
+                default:
+                    $status = 'Pending';
+                    break;
+            }
+
+            $transaction = $walletTransaction;
+            // $transaction->status = $status;
+
+
+            $fundTrans[] = [
+                'id' => $walletTransaction->id,
+                'title' => "Wallet Funding",
+                'type' => 'fund',
+                'sub_type_id' => 0,
+                'icon' => env('APP_URL') . "/images/services/fund.png",
+                'amount' => number_format((float) $walletTransaction->amount, 2),
+                'status' => $status,
+                'created_at' => $walletTransaction->created_at,
+                'updated_at' => $walletTransaction->created_at,
+                'trx' => $transaction,
+            ];
+        }
 
         foreach ($utiData as $billTransaction) {
             $utility = Utility::where('id', $billTransaction->utility_id)->first();
@@ -503,8 +548,10 @@ class HomeController extends Controller
             ];
         }
 
-        foreach ($fundData as $walletTransaction) {
-            switch ($walletTransaction->status) {
+
+
+        foreach ($betData as $betTransaction) {
+            switch ($betTransaction->status) {
                 case 0:
                     $status = 'Pending';
                     break;
@@ -522,48 +569,128 @@ class HomeController extends Controller
                     break;
             }
 
-            $transaction = $walletTransaction;
-            // $transaction->status = $status;
 
-
-            $fundTrans[] = [
-                'id' => $walletTransaction->id,
-                'title' => "Wallet Funding",
-                'type' => 'fund',
-                'sub_type_id' => 0,
-                'icon' => env('APP_URL') . "/images/services/fund.png",
-                'amount' => number_format((float) $walletTransaction->amount, 2),
+            // fill up trx
+            $transaction = $betTransaction;
+            $transaction->status = $status;
+            $betTrans[] = [
+                'id' => $betTransaction->id,
+                'title' => $betTransaction->product,
+                'type' => 'bet_bill-' . $betTransaction->product,
+                'sub_type_id' => $betTransaction->id,
+                'icon' => "https://res.cloudinary.com/db3c1repq/image/upload/v1713497804/_1baa1896-2b36-44f9-8cd4-b71dcfc2efae_ghvd6j.jpg",
+                'amount' => number_format($betTransaction->amount, 2),
                 'status' => $status,
-                'created_at' => $walletTransaction->created_at,
-                'updated_at' => $walletTransaction->created_at,
+                'created_at' => $betTransaction->created_at,
+                'updated_at' => $betTransaction->updated_at,
                 'trx' => $transaction,
             ];
         }
 
+        foreach ($trfData as $trfTransaction) {
+            switch ($trfTransaction->status) {
+                case 0:
+                    $status = 'Pending';
+                    break;
+                case 1:
+                    $status = 'Completed';
+                    break;
+                case 2:
+                    $status = 'Failed';
+                    break;
+                case 3:
+                    $status = 'Cancelled';
+                    break;
+                default:
+                    $status = 'Pending';
+                    break;
+            }
 
+            // fill up trx
+            $transaction = $trfTransaction;
+            $transaction->status = $status;
 
-        // $data = [
-        //     'gift_cards' => $giftTrans,
-        //     'bitcoins' =>  $bitTrans,
-        //     'utility' =>  $utiTrans,
+            $name = str_replace(",", "", $trfTransaction->account_name);
+            $name = str_replace("  ", " ", $trfTransaction->account_name);
+            $name = explode(' ', $name);
+            $firstname = $name[0];
+            $lastname = $name[1] ?? $name[0];
 
-        // ];
+            $trx_user = User::find($trfTransaction->user_id);
+
+            $transaction->sender = $trx_user ? ($trx_user->first_name . " " . $trx_user->last_name[0] . ".") : "SpaceTrade User";
+
+            $wallTrans[] = [
+                'id' => $trfTransaction->id,
+                'title' => $trfTransaction->account_no == $user->email || $trfTransaction->account_no == $user->username ? "From " . ($trx_user ? $trx_user->first_name : "a SpaceTrade User") : ($lastname ?? "" . ' ' . $firstname[0] ?? ""),
+                'type' => $trfTransaction->type . ($trfTransaction->account_no == $user->email || $trfTransaction->account_no == $user->username ? "_in" : "_transfer"),
+                'sub_type_id' => 0,
+                'icon' => env('APP_URL') . "/images/services/transfer" . ($trfTransaction->account_no == $user->email || $trfTransaction->account_no == $user->username ? "_in" : "") . ".png",
+                'amount' => number_format((float) $trfTransaction->amount, 2),
+                'status' => $status,
+                'created_at' => $trfTransaction->created_at,
+                'updated_at' => $trfTransaction->created_at,
+                'trx' => $transaction,
+            ];
+        }
+
+        foreach ($trf2Data as $trfTransaction) {
+            switch ($trfTransaction->status) {
+                case 0:
+                    $status = 'Pending';
+                    break;
+                case 1:
+                    $status = 'Completed';
+                    break;
+                case 2:
+                    $status = 'Failed';
+                    break;
+                case 3:
+                    $status = 'Cancelled';
+                    break;
+                default:
+                    $status = 'Pending';
+                    break;
+            }
+
+            // fill up trx
+            $transaction = $trfTransaction;
+            $transaction->status = $status;
+
+            $name = str_replace(",", "", $trfTransaction->account_name);
+            $name = str_replace("  ", " ", $trfTransaction->account_name);
+            $name = explode(' ', $name);
+            $firstname = $name[0];
+            $lastname = $name[1] ?? $name[0];
+
+            $trx_user = User::find($trfTransaction->user_id);
+
+            $wallTrans[] = [
+                'id' => $trfTransaction->id,
+                'title' => "SpaceTrade Bonus",
+                'type' => "space_bonus",
+                'sub_type_id' => 0,
+                'icon' => env('APP_URL') . "/images/services/space_bonus.png",
+                'amount' => number_format((float) $trfTransaction->amount, 2),
+                'status' => $status,
+                'created_at' => $trfTransaction->created_at,
+                'updated_at' => $trfTransaction->created_at,
+                'trx' => $transaction,
+            ];
+        }
 
         // merge the three arrays
         $transactions = array_merge(
             $wallTrans ?? [],
             $giftTrans ?? [],
-            $cryptoTrans ?? [],
+            $fundTrans ?? [],
             $billTrans ?? [],
-            $buyTrans ?? [],
-            $buyCryptoTrans ?? [],
-            $fundTrans ?? []
+            $betTrans ?? [],
+            $buyTrans ?? []
         );
+
         if (count($transactions) < 1) {
-            return response(
-                $transactions,
-                200
-            );
+            return response([], 200);
         }
 
         // sort by latest created at
@@ -575,15 +702,34 @@ class HomeController extends Controller
 
     public function allUserTrans($id)
     {
-        $user = auth('api')->user();
+        $user = User::where("id", $id)->first();
+
+        // Define the start and end of July 10
+        $startDate = Carbon::create(2024, 7, 10, 8, 45, 0);
+        $endDate = Carbon::now();
 
 
-        $giftData = GiftCardTransaction::where('user_id', $id)->get()->sortByDesc('created_at');
+        $giftData = GiftCardTransaction::where('user_id', $id)->whereBetween('updated_at', [$startDate, $endDate])->get()->sortByDesc('created_at');
         $utiData = BillTransaction::where('user_id', $id)->get()->sortByDesc('created_at');
         $walData = WalletTransactions::where('user_id', $id)->get()->sortByDesc('created_at');
+        $refData = RewardWalletTransaction::where('user_id', $id)->whereBetween('updated_at', [$startDate, $endDate])->get()->sortByDesc('created_at');
+        $trf2Data = SpaceTransfer::where('account_no', $user->email)->orWhere('account_no', $user->username)->get()->sortByDesc('created_at');
+        $betData = BettingTransaction::where('user_id', $id)->get()->sortByDesc('created_at');
+        $trfData = FundTransferRequest::where(function ($query) use ($id, $user) {
+            $query->where('user_id', $id)
+            ->orWhere('recepient_id', $id)
+            ->orWhere('account_no', $user->email)
+                ->orWhere('account_no', $user->username);
+        })
+            ->orderBy('created_at', 'desc')
+            ->get();
+
+        $buyData = BuyGiftCardTransaction::where('user_id', $id)->get()->sortByDesc('created_at');
+
 
         $billTrans = [];
         foreach ($utiData as $billTransaction) {
+            $utility = Utility::where('id', $billTransaction->utility_id)->first();
             switch ($billTransaction->status) {
                 case 0:
                     $status = 'Pending';
@@ -603,18 +749,27 @@ class HomeController extends Controller
             }
 
 
+            // fill up trx
+            $transaction = $billTransaction;
+            $transaction->service_icon = env('APP_URL') . $billTransaction->service_icon;
+            $transaction->status = $status;
+            $transaction->utility_name = $utility->name;
+            $transaction->utility_prefix = $utility->prefix;
+
             $billTrans[] = [
                 'id' => $billTransaction->id,
                 'title' => $billTransaction->type,
                 'type' => 'bill',
                 'sub_type_id' => $billTransaction->utility_id,
-                'icon' => env('APP_URL') . $billTransaction->service_icon,
+                'icon' => $transaction->service_icon,
                 'amount' => $billTransaction->amount,
                 'status' => $status,
                 'created_at' => $billTransaction->created_at,
                 'updated_at' => $billTransaction->created_at,
+                'trx' => $transaction,
             ];
         }
+
 
 
         $giftTrans = [];
@@ -632,6 +787,9 @@ class HomeController extends Controller
                 case 3:
                     $status = 'Cancelled';
                     break;
+                case 4:
+                    $status = 'Loading';
+                    break;
                 default:
                     $status = 'Pending';
                     break;
@@ -646,11 +804,11 @@ class HomeController extends Controller
 
             $giftTrans[] = [
                 'id' => $giftTransaction->id,
-                'title' => $currency->symbol . $giftTransaction->card_value,
+                'title' => $giftCard->title . " - " . $currency->symbol . $giftTransaction->card_value . ($giftTransaction->qty == 1 ? "" : (" x" . ($status == 'Completed' ? $giftTransaction->approved_qty : $giftTransaction->qty))),
                 'type' => 'giftcard',
                 'sub_type_id' => $giftCard->id,
                 'icon' => env('APP_URL') . $giftCard->brand_logo,
-                'amount' => number_format((float) $giftTransaction->rate * $giftTransaction->card_value, 2),
+                'amount' => number_format((float) $giftTransaction->rate * $giftTransaction->card_value * ($status == 'Completed' ? ($giftTransaction->approved_qty ?? 1) : ($giftTransaction->qty ?? 1)), 2),
                 'status' => $status,
                 'created_at' => $giftTransaction->created_at,
                 'updated_at' => $giftTransaction->created_at,
@@ -677,16 +835,13 @@ class HomeController extends Controller
                     break;
             }
 
-            // $giftCard = GiftCard::where('id', $giftTransaction->gift_card_id)->first();
-            // $giftcountry = GiftCardsCountry::where("id", $giftTransaction->gift_card_country_id)->first();
-            // $country = Country::where("id", $giftcountry->country_id)->first();
-            // $generalCountry = GeneralCountry::where("countryCode", strtoupper($country->iso))->first();
-            // $currency = Currencies::where("code", $generalCountry->currencyCode)->first();
-
+            // fill up trx
+            $transaction = $walletTransaction;
+            $transaction->status = $status;
 
             $wallTrans[] = [
                 'id' => $walletTransaction->id,
-                'title' => $walletTransaction->type == "transfer" ? "Funds Transfer" : "Withdrawal",
+                'title' => "Withdrawal",
                 'type' => 'wallet',
                 'sub_type_id' => 0,
                 'icon' => env('APP_URL') . "/images/services/withdraw.png",
@@ -694,19 +849,214 @@ class HomeController extends Controller
                 'status' => $status,
                 'created_at' => $walletTransaction->created_at,
                 'updated_at' => $walletTransaction->created_at,
+                'trx' => $transaction,
+                'charge' => $transaction->charge,
             ];
         }
+
+        foreach ($refData as $rewardTransaction) {
+            switch ($rewardTransaction->status) {
+                case 0:
+                    $status = 'Pending';
+                    break;
+                case 1:
+                    $status = 'Completed';
+                    break;
+                case 2:
+                    $status = 'Failed';
+                    break;
+                case 3:
+                    $status = 'Awaiting Payment';
+                    break;
+                default:
+                    $status = 'Pending';
+                    break;
+            }
+
+            $title = "Reward";
+            $refUser = User::where("id", $rewardTransaction->referred_user_id)->first();
+            if ($rewardTransaction->referred_user_id != 0 && $refUser) {
+                $title =  $refUser->first_name . "'s Referral";
+            } else {
+                $title = "Reward Earned";
+            }
+
+            $wallTrans[] = [
+                'id' => $rewardTransaction->id,
+                'title' => $title,
+                'type' => 'reward',
+                'sub_type_id' => 0,
+                'icon' => env('APP_URL') . "/images/services/reward.png",
+                'amount' => number_format((float) $rewardTransaction->amount, 2),
+                'status' => $status,
+                'created_at' => $rewardTransaction->created_at,
+                'updated_at' => $rewardTransaction->updated_at,
+            ];
+        }
+
+        foreach ($betData as $betTransaction) {
+            switch ($betTransaction->status) {
+                case 0:
+                    $status = 'Pending';
+                    break;
+                case 1:
+                    $status = 'Completed';
+                    break;
+                case 2:
+                    $status = 'Failed';
+                    break;
+                case 3:
+                    $status = 'Cancelled';
+                    break;
+                default:
+                    $status = 'Pending';
+                    break;
+            }
+
+
+            // fill up trx
+            $transaction = $betTransaction;
+            $transaction->status = $status;
+            $betTrans[] = [
+                'id' => $betTransaction->id,
+                'title' => $betTransaction->product,
+                'type' => 'bet_bill-' . $betTransaction->product,
+                'sub_type_id' => $betTransaction->id,
+                'icon' => "https://res.cloudinary.com/db3c1repq/image/upload/v1713497804/_1baa1896-2b36-44f9-8cd4-b71dcfc2efae_ghvd6j.jpg",
+                'amount' => number_format($betTransaction->amount, 2),
+                'status' => $status,
+                'created_at' => $betTransaction->created_at,
+                'updated_at' => $betTransaction->updated_at,
+                'charge' => $transaction->charge,
+                'trx' => $transaction,
+            ];
+        }
+
+        foreach ($trfData as $trfTransaction) {
+            switch ($trfTransaction->status) {
+                case 0:
+                    $status = 'Pending';
+                    break;
+                case 1:
+                    $status = 'Completed';
+                    break;
+                case 2:
+                    $status = 'Failed';
+                    break;
+                case 3:
+                    $status = 'Cancelled';
+                    break;
+                default:
+                    $status = 'Pending';
+                    break;
+            }
+
+            // fill up trx
+            $transaction = $trfTransaction;
+            $transaction->status = $status;
+
+            $name = str_replace(",", "", $trfTransaction->account_name);
+            $name = str_replace("  ", " ", $trfTransaction->account_name);
+            $name = explode(' ', $name);
+            $firstname = $name[0];
+            $lastname = $name[1] ?? $name[0];
+
+            $trx_user = User::find($trfTransaction->user_id);
+
+            $wallTrans[] = [
+                'id' => $trfTransaction->id,
+                'title' => $trfTransaction->account_no == $user->email || $trfTransaction->account_no == $user->username ? "From " . ($trx_user ? $trx_user->first_name : "a SpaceTrade User") : ($lastname ?? "" . ' ' . $firstname[0] ?? ""),
+                'type' => $trfTransaction->type . ($trfTransaction->account_no == $user->email || $trfTransaction->account_no == $user->username ? "_in" : "_transfer"),
+                'sub_type_id' => 0,
+                'icon' => env('APP_URL') . "/images/services/transfer" . ($trfTransaction->account_no == $user->email || $trfTransaction->account_no == $user->username ? "_in" : "") . ".png",
+                'amount' => number_format((float) $trfTransaction->amount, 2),
+                'status' => $status,
+                'created_at' => $trfTransaction->created_at,
+                'updated_at' => $trfTransaction->created_at,
+                'trx' => $transaction,
+                'charge' => $transaction->charge,
+            ];
+        }
+
+        foreach ($buyData as $giftTransaction) {
+
+            $transaction = $giftTransaction;
+            $buyTrans[] = [
+                'id' => $giftTransaction->id,
+                'title' => $giftTransaction->product_name . " - " . $giftTransaction->product_currency_code . $giftTransaction->unit_price . " x" . $giftTransaction->quantity,
+                'type' => 'buy_giftcard',
+                'sub_type_id' => $giftTransaction->productId,
+                'icon' => 'https://res.cloudinary.com/db3c1repq/image/upload/v1717585205/buy_gift_saz9ii.png',
+                'amount' => number_format($giftTransaction->amount, 2),
+                'status' => $giftTransaction->status,
+                'created_at' => $giftTransaction->created_at,
+                'updated_at' => $giftTransaction->created_at,
+                'trx' => $transaction,
+            ];
+        }
+
+        foreach ($trf2Data as $trfTransaction) {
+            switch ($trfTransaction->status) {
+                case 0:
+                    $status = 'Pending';
+                    break;
+                case 1:
+                    $status = 'Completed';
+                    break;
+                case 2:
+                    $status = 'Failed';
+                    break;
+                case 3:
+                    $status = 'Cancelled';
+                    break;
+                default:
+                    $status = 'Pending';
+                    break;
+            }
+
+            // fill up trx
+            $transaction = $trfTransaction;
+            $transaction->status = $status;
+
+            $name = str_replace(",", "", $trfTransaction->account_name);
+            $name = str_replace("  ", " ", $trfTransaction->account_name);
+            $name = explode(' ', $name);
+            $firstname = $name[0];
+            $lastname = $name[1] ?? $name[0];
+
+            $trx_user = User::find($trfTransaction->user_id);
+
+            $wallTrans[] = [
+                'id' => $trfTransaction->id,
+                'title' => "SpaceTrade Bonus",
+                'type' => "space_bonus",
+                'sub_type_id' => 0,
+                'icon' => env('APP_URL') . "/images/services/space_bonus.png",
+                'amount' => number_format((float) $trfTransaction->amount, 2),
+                'status' => $status,
+                'created_at' => $trfTransaction->created_at,
+                'updated_at' => $trfTransaction->created_at,
+                'trx' => $transaction,
+            ];
+        }
+
 
 
         // merge the three arrays
         $transactions = array_merge(
             $wallTrans,
             $giftTrans,
-            $billTrans,
+            $billTrans ?? [],
+            $betTrans ?? [],
+            $buyTrans ?? []
         );
         if (count($transactions) < 1) {
             return response(
-                $transactions,
+                [
+                    'message' => "Transactions fetched successfulluy",
+                    'transactions' =>  [],
+
+                ],
                 200
             );
         }
@@ -715,137 +1065,15 @@ class HomeController extends Controller
         usort($transactions, function ($a, $b) {
             return $b['created_at'] <=> $a['created_at'];
         });
-        return response($transactions, 200);
-    }
-
-
-    public function adminPrevTrans()
-    {
-
-        $giftData = GiftCardTransaction::where('status', '>', 0)->get();
-        $walData = WalletTransactions::where('status', '>', 0)->get();
-        $giftTrans = [];
-        foreach ($giftData as $giftTran) {
-
-            $giftCard = GiftCard::where('id', $giftTran->gift_card_id)->first();
-            $giftcountry = GiftCardsCountry::where("id", $giftTran->gift_card_country_id)->first();
-            $country = Country::where("id", $giftcountry->country_id)->first();
-            $generalCountry = GeneralCountry::where("countryCode", strtoupper($country->iso))->first();
-            $currency = Currencies::where("code", $generalCountry->currencyCode)->first();
-
-
-
-            $giftItem['id'] = $giftTran->id;
-            $giftItem['title'] = $currency->symbol . $giftTran->card_value;
-            $giftItem['type'] = "giftcard";
-            $giftItem['user_id'] = $giftTran->user_id;
-            $giftItem['icon'] =  env('APP_URL') . $giftCard->brand_logo;
-            $giftItem['service_id'] = $giftTran->service_id;
-            $giftItem['usd_amount'] = $giftTran->card_value;
-            $giftItem['usd_rate'] = $giftTran->rate;
-            $giftItem['ngn_amount'] = number_format((float) $giftTran->card_value * $giftTran->rate, 2);
-            $giftItem['transaction_ref'] = $giftTran->transaction_ref;
-            $giftItem['status'] = $giftTran->status;
-            $giftItem['created_at'] = $giftTran->created_at;
-            $giftItem['iso'] = $giftcountry->iso;
-
-            $giftTrans[] = $giftItem;
-        }
-
-
-        $withTrans = [];
-        foreach ($walData as $withTran) {
-            // $bwithser = Service::where('id', $bitTran->service_id)->first();
-            $withItem['id'] = $withTran->id;
-            $withItem['user_id'] = $withTran->user_id;
-            $withItem['title'] = $withTran->type == "transfer" ? "Funds Transfer" : "Withdrawal";
-            $withItem['type'] = "wallet";
-            $withItem['icon'] =  env('APP_URL') . "/images/services/withdraw.png";
-            $withItem['service_id'] = 0;
-            $withItem['usd_amount'] = $withTran->amount;
-            $withItem['usd_rate'] = 1;
-            $withItem['ngn_amount'] = $withTran->amount;
-            $wthItem['transaction_ref'] = $withTran->id;
-            $withItem['bank_name'] = $withTran->bank_name;
-            $withItem['account_number'] = $withTran->account_number;
-            $withItem['account_name'] = $withTran->account_name;
-            $withItem['status'] = $withTran->status;
-            $withItem['created_at'] = $withTran->created_at;
-            $withItem['iso'] = 'NG';
-
-
-            $withTrans[] = $withItem;
-        }
-
 
         $data = [
-            'gift_cards' => $giftTrans,
-            'withdrawals' => $withTrans
+            'message' => "Transactions fetched successfulluy",
+            'transactions' =>  $transactions,
 
         ];
         return response($data, 200);
     }
 
-
-    public function singleTrans($id)
-    {
-        $user = auth('api')->user();
-
-        $transaction = $user->transactions()->where('id', $id)->first();
-        $ser = Service::where('id', $transaction->service_id)->first();
-        $transItem['id'] = $transaction->id;
-        $transItem['user_id'] = $transaction->user_id;
-        $transItem['icon'] =  env('APP_URL') . $ser->transaction_icon;
-        $transItem['service_id'] = $transaction->service_id;
-        $transItem['usd_amount'] = $transaction->usd_amount;
-        $transItem['usd_rate'] = $transaction->usd_rate;
-        $transItem['ngn_amount'] = $transaction->ngn_amount;
-        $transItem['transaction_ref'] = $transaction->transaction_ref;
-        $transItem['status'] = $transaction->status;
-        $transItem['type'] = $transaction->type;
-
-        $data = [
-            'transaction' => $transItem,
-        ];
-        return response($data, 200);
-    }
-
-    public function singleAdminTrans($id)
-    {
-
-        $transaction = Transaction::where('id', $id)->first();
-        $ser = Service::where('id', $transaction->service_id)->first();
-        $transItem['id'] = $transaction->id;
-        $transItem['user_id'] = $transaction->user_id;
-        $transItem['icon'] =  env('APP_URL') . $ser->transaction_icon;
-        $transItem['service_id'] = $transaction->service_id;
-        $transItem['usd_amount'] = $transaction->usd_amount;
-        $transItem['usd_rate'] = $transaction->usd_rate;
-        $transItem['ngn_amount'] = $transaction->ngn_amount;
-        $transItem['transaction_ref'] = $transaction->transaction_ref;
-        $transItem['type'] = $transaction->type;
-
-        // create swithc for the status
-        switch ($transaction->status) {
-            case 0:
-                $transItem['status'] = 'Pending';
-                break;
-            case 2:
-                $transItem['status'] = 'Success';
-                break;
-            case 1:
-                $transItem['status'] = 'Failed';
-                break;
-            default:
-                $transItem['status'] = 'Pending';
-                break;
-        }
-
-        $data = [
-            'transaction' => $transItem,
-        ];
-        return response($data, 200);
-    }
 
     public function profile()
     {
