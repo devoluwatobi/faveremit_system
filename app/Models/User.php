@@ -9,6 +9,12 @@ use Illuminate\Notifications\Notifiable;
 use Laravel\Passport\HasApiTokens;
 
 
+/**
+ * @method latest()
+ * @method selectRaw(string $string)
+ * @method whereDate(string $string, \Carbon\Carbon $today)
+ * @method whereBetween(string $string, array $array)
+ */
 class User extends Authenticatable
 {
     use HasApiTokens, HasFactory, Notifiable;
