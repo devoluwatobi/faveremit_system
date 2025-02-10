@@ -231,17 +231,17 @@ class MapleVirtualCardController extends Controller
 
         $u_c = VirtualCardService::updateMyCard($user);
 
-        if (!$u_c || $u_c == null || $u_c == false) {
-            $response = response()->json([
-                'error' => true,
-                'message' => "Process failed, please try again later"
-            ], 423);
+        // if (!$u_c || $u_c == null || $u_c == false) {
+        //     $response = response()->json([
+        //         'error' => true,
+        //         'message' => "Process failed, please try again later"
+        //     ], 423);
 
 
-            // dd($response);
+        //     // dd($response);
 
-            return response(["message" => "fff"], 403);
-        }
+        //     return response(["message" => "fff"], 403);
+        // }
 
         return response(
             [
