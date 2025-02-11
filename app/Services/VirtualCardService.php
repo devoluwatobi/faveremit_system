@@ -237,6 +237,8 @@ class VirtualCardService
         $service = new self();
         $customer = MapleCustomer::where('user_id', $user->id)->firstOrFail();
 
+
+
         $data = [
             "customer_id" => $customer->maple_id,
             "currency" => "USD",
@@ -405,6 +407,65 @@ class VirtualCardService
         Log::error('Failed update Cards: ', ['response' => $serverOutput]);
         return false;
     }
+
+
+    public static function checkMyActiveCards($user): bool
+    {
+        $customer = MapleCustomer::where("user_id", $user->id)->first();
+
+        if (!$customer || $customer == null) {
+            return false;
+        }
+
+        $service = new self();
+
+        $serverOutput = $service->get("/issuing?status=ACTIVE&customer_id={$customer->maple_id}");
+
+
+
+        if ($serverOutput && $serverOutput->status && isset($serverOutput->data)) {
+            foreach ($serverOutput->data as $card) { {
+                    $carbonDate = Carbon::parse($card->balance_updated_at);
+                    Log::info("balance => " . $card->balance);
+                    MapleVirtualCard::updateOrCreate(
+                        [
+                            'user_id' => $customer->user_id,
+                            'customer_id' => $customer->maple_id,
+                            'maple_id' => $card->id,
+                        ],
+                        [
+                            'user_id' => $customer->user_id,
+                            'customer_id' => $customer->maple_id,
+                            'maple_id' => $card->id,
+                            'name' => $card->name, // Cardholder's name
+                            'card_number' => $card->card_number, // Full card number
+                            'masked_pan'  => $card->masked_pan, // Masked PAN
+                            'expiry'  => $card->expiry, // Expiry date in MM/YY format
+                            'cvv'  => $card->cvv, // CVV code
+                            'status'  => $card->status,  // ['ACTIVE', 'INACTIVE', 'BLOCKED', 'EXPIRED'], // Card status
+                            'type' => $card->type, // ['VIRTUAL', 'PHYSICAL'], // Card type
+                            'issuer'  => $card->issuer, // Issuer of the card
+                            'currency' => $card->currency, // Currency (ISO code)
+                            'balance'  => $card->balance, // lowest denomination; Kobo or Cents", // Balance with precision
+                            'balance_updated_at'  => $carbonDate, // Balance updated timestamp
+                            'auto_approve'  => $card->auto_approve, // Auto approve flag
+                            'street'  => $card->address->street, // Street address
+                            'city'  => $card->address->city, // City
+                            'state'  => $card->address->state, // State abbreviation
+                            'postal_code'  => $card->address->postal_code, // Postal code
+                            'country'  => $card->address->country,
+                        ]
+                    );
+                }
+            }
+            return true;
+        }
+
+        Log::error('Failed update Cards: ', ['response' => $serverOutput]);
+        return false;
+    }
+
+
 
     public static function updateMyCard($user): bool
     {

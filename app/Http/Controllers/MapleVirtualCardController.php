@@ -229,7 +229,7 @@ class MapleVirtualCardController extends Controller
             );
         }
 
-        $u_c = VirtualCardService::updateMyCard($user);
+        $u_c = VirtualCardService::checkMyActiveCards($user);
 
         // if (!$u_c || $u_c == null || $u_c == false) {
         //     $response = response()->json([
