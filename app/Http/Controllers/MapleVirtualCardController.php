@@ -98,6 +98,8 @@ class MapleVirtualCardController extends Controller
 
         $user = auth('api')->user();
 
+        $u_c = VirtualCardService::checkMyActiveCards($user);
+
         $existing_cards = MapleVirtualCard::where("user_id", $user->id)->where("status", "ACTIVE")->get();
 
         if ($existing_cards->count() > 0) {
@@ -222,7 +224,7 @@ class MapleVirtualCardController extends Controller
                     'message' => "Cards fetchd successfully",
                     'data' => [
                         "card" => null,
-                        "transactions" => VirtualCardTransaction::where("user_id", $user->id)->get(),
+                        "transactions" => VirtualCardTransaction::where("user_id", $user->id)->get()->sortByDesc('created_at'),
                     ]
                 ],
                 200
@@ -249,7 +251,7 @@ class MapleVirtualCardController extends Controller
                 'message' => "Cards fetchd successfully",
                 'data' => [
                     "card" => MapleVirtualCard::where("user_id", $user->id)->where("status", "ACTIVE")->first(),
-                    "transactions" => VirtualCardTransaction::where("user_id", $user->id)->get(),
+                    "transactions" => VirtualCardTransaction::where("user_id", $user->id)->get()->sortByDesc('created_at'),
                 ]
             ],
             200
