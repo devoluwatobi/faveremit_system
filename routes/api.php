@@ -201,7 +201,6 @@ Route::group(['middleware' => ['cors', 'json.response']], function () {
         Route::get('/leaderboard/giftcard', [App\Http\Controllers\HomeController::class, 'showGiftLeaders']);
     });
 
-
     // admin groups
 
     Route::name('admin.')->prefix('admin')->group(function () {
@@ -213,8 +212,8 @@ Route::group(['middleware' => ['cors', 'json.response']], function () {
             Route::get('/home', [App\Http\Controllers\HomeController::class, 'adminIndex']);
             Route::get('/transactions', [App\Http\Controllers\HomeController::class, 'adminTrans']);
             Route::get('/user-transactions/{id}', [App\Http\Controllers\HomeController::class, 'allUserTrans']);
-            Route::get('/prev-transactions', [App\Http\Controllers\HomeController::class, 'adminPrevTrans']);
-            Route::get('/transactions/{id}', [App\Http\Controllers\HomeController::class, 'singleAdminTrans']);
+          //  Route::get('/prev-transactions', [App\Http\Controllers\HomeController::class, 'adminPrevTrans']);
+        //    Route::get('/transactions/{id}', [App\Http\Controllers\HomeController::class, 'singleAdminTrans']);
             Route::post('/update-fcm', [App\Http\Controllers\Auth\ApiAuthController::class, 'updateFcm']);
 
             /* gitfcard */
@@ -234,7 +233,6 @@ Route::group(['middleware' => ['cors', 'json.response']], function () {
             Route::post('/deactivate-range', [App\Http\Controllers\CardRangeController::class, 'deactivate']);
             Route::post('/add-giftcard-category', [App\Http\Controllers\CardRangeController::class, 'createRangeCategory']);
             Route::post('/update-giftcard-category', [App\Http\Controllers\CardRangeController::class, 'updateRangeCategory']);
-
 
             Route::get('/get-giftcards/{id}', [App\Http\Controllers\GiftCardController::class, 'AdminSingleCard']);
             Route::get('/get-giftcards/country/{id}', [App\Http\Controllers\GiftCardController::class, 'AdminSingleCountry']);
