@@ -30,7 +30,7 @@ class MapleVirtualCardController extends Controller
 
         $card = MapleVirtualCard::where("user_id", $user->id)->first();
 
-        if ($customer == null || $card == null) {
+        if ($customer == null) {
             return response(
                 [
                     'error' => false,
