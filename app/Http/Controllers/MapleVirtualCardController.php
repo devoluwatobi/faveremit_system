@@ -251,7 +251,7 @@ class MapleVirtualCardController extends Controller
                 'message' => "Cards fetchd successfully",
                 'data' => [
                     "card" => MapleVirtualCard::where("user_id", $user->id)->where("status", "ACTIVE")->first(),
-                    "transactions" => VirtualCardTransaction::where("user_id", $user->id)->get()->sortByDesc('created_at'),
+                    "transactions" => VirtualCardTransaction::where("user_id", $user->id)->get(),
                 ]
             ],
             200
