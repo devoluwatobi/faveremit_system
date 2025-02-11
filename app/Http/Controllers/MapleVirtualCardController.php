@@ -41,7 +41,7 @@ class MapleVirtualCardController extends Controller
             );
         }
 
-        $u_c = VirtualCardService::updateCards($user);
+        $u_c = VirtualCardService::checkMyActiveCards($user);
 
         if ((!$u_c || $u_c == null || $u_c == false) && ($customer == null || $card == null)) {
             $response = response()->json([
@@ -213,9 +213,9 @@ class MapleVirtualCardController extends Controller
 
         $customer = MapleCustomer::where("user_id", $user->id)->first();
 
-        $card = MapleVirtualCard::where("user_id", $user->id)->first();
+        // $card = MapleVirtualCard::where("user_id", $user->id)->first();
 
-        if ($customer == null || $card == null) {
+        if ($customer == null) {
             return response(
                 [
                     'error' => false,
@@ -229,19 +229,19 @@ class MapleVirtualCardController extends Controller
             );
         }
 
-        $u_c = VirtualCardService::updateMyCard($user);
+        $u_c = VirtualCardService::checkMyActiveCards($user);
 
-        if (!$u_c || $u_c == null || $u_c == false) {
-            $response = response()->json([
-                'error' => true,
-                'message' => "Process failed, please try again later"
-            ], 423);
+        // if (!$u_c || $u_c == null || $u_c == false) {
+        //     $response = response()->json([
+        //         'error' => true,
+        //         'message' => "Process failed, please try again later"
+        //     ], 423);
 
 
-            // dd($response);
+        //     // dd($response);
 
-            return response(["message" => "fff"], 403);
-        }
+        //     return response(["message" => "fff"], 403);
+        // }
 
         return response(
             [
