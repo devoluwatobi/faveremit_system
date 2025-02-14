@@ -1094,7 +1094,7 @@ class HomeController extends Controller
             $user->balance = $user_wallet->balance;
             $user->photo = env('APP_URL') . $user->photo;
             if ($user->referrer && $user->referrer !=  null) {
-                $user->referrer = User::where("username", $user->referrer)->first()->name;
+                $user->referrer = User::where("username", $user->referrer)->first();
             }
         }
 
