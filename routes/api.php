@@ -282,6 +282,7 @@ Route::group(['middleware' => ['cors', 'json.response']], function () {
             Route::prefix('dashboard')->group(function () {  // notifications routes
                 Route::controller(App\Http\Controllers\DashboardController::class)->group(function () {
                     Route::get('index', 'index');
+                    Route::get('users/index', 'userStatIndex');
                     Route::get('users/all', 'indexMethod');
                     Route::post('users/graph', 'getUsersGraphMethod');
                     Route::get('users-count', 'usersCountMethod');

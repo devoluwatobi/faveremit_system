@@ -249,6 +249,24 @@ class DashboardController extends Controller
 
         foreach ($lastFiveTransactions as $giftTran) {
 
+            switch ($giftTran->status) {
+                case 0:
+                    $status = 'Pending';
+                    break;
+                case 1:
+                    $status = 'Completed';
+                    break;
+                case 2:
+                    $status = 'Failed';
+                    break;
+                case 3:
+                    $status = 'Cancelled';
+                    break;
+                default:
+                    $status = 'Pending';
+                    break;
+            }
+
             $giftCard = GiftCard::where('id', $giftTran->gift_card_id)->first();
             $giftcountry = GiftCardsCountry::where("id", $giftTran->gift_card_country_id)->first();
             $country = Country::where("id", $giftcountry->country_id)->first();
@@ -260,6 +278,7 @@ class DashboardController extends Controller
             $giftTran->icon =  env('APP_URL') . $giftCard->brand_logo;
             $giftTran->type =  'giftcard';
             $giftTran->user =  User::where('id', $giftTran->user_id)->first()->first_name;
+            $giftTran->status_string = $status;
         }
 
         return response(
@@ -325,5 +344,25 @@ class DashboardController extends Controller
                 'recent_transaction' => $lastFiveTransactions
             ]
         );
+    }
+
+    public function userStatIndex()
+    {
+        return ([
+            'graph' => [
+                'daily' => User::getSalesForLast7Days(),
+                'weekly' => User::getSalesForLast4Weeks(),
+                'monthly' => User::getSalesByMonth(),
+                'yearly' => User::getSalesByYear(),
+            ],
+            'count' => [
+                'all' => $this->userModel->all()->count(),
+                'today' => User::getTodaySales(),
+                'yesterday' => User::getYesterdaySales(),
+                'this_week' => User::getThisWeekSales(),
+                'last_week' => User::getLastWeekSales(),
+                'this_month' => $this->userModel->whereBetween('created_at', [$this->monthStartDate, $this->monthEndDate])->count(),
+            ]
+        ]);
     }
 }

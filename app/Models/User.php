@@ -2,11 +2,12 @@
 
 namespace App\Models;
 
+use Carbon\Carbon;
+use Laravel\Passport\HasApiTokens;
+use Illuminate\Notifications\Notifiable;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
-use Illuminate\Notifications\Notifiable;
-use Laravel\Passport\HasApiTokens;
 
 
 /**
@@ -98,5 +99,76 @@ class User extends Authenticatable
     public function walletTransaction()
     {
         return $this->hasMany(WalletTransactions::class);
+    }
+
+    public static function getTodaySales()
+    {
+        $today = Carbon::today();
+
+        return User::whereDate('created_at', $today)->count() ?? 0;
+    }
+
+    public static function getYesterdaySales()
+    {
+        $yesterday = Carbon::yesterday();
+
+        return User::whereDate('created_at', $yesterday)->count() ?? 0;
+    }
+
+    public static function getThisWeekSales()
+    {
+
+        $startOfWeek = Carbon::now()->startOfWeek(Carbon::MONDAY);
+        $endOfWeek = Carbon::now()->endOfWeek(Carbon::SUNDAY);
+
+        return User::whereBetween('created_at', [$startOfWeek, $endOfWeek])->count() ?? 0;
+    }
+
+    public static function getLastWeekSales()
+    {
+
+        $startOfLastWeek = Carbon::now()->startOfWeek()->subWeek();
+        $endOfLastWeek = Carbon::now()->endOfWeek()->subWeek();
+
+        return User::whereBetween('created_at', [$startOfLastWeek, $endOfLastWeek])->count() ?? 0;
+    }
+
+
+    public static function getSalesForLast7Days()
+    {
+        $sevenDaysAgo = \Carbon\Carbon::now()->subDays(7);
+        return User::where('created_at', '>=', $sevenDaysAgo)
+            ->selectRaw('DATE(created_at) as day, COUNT(*) as total')
+            ->groupBy('day')
+            ->orderBy('day', 'asc')
+            ->get();
+    }
+
+    public static function getSalesForLast4Weeks()
+    {
+        $fourWeeksAgo = \Carbon\Carbon::now()->subWeeks(4);
+
+        return User::where('created_at', '>=', $fourWeeksAgo)->selectRaw('YEAR(created_at) as year, WEEK(created_at, 1) as week,  COUNT(*) as total')
+        ->groupBy('year', 'week')
+        ->orderBy('year', 'asc')
+        ->orderBy('week', 'asc')
+        ->get();
+    }
+
+    public static function getSalesByMonth()
+    {
+        return User::selectRaw('YEAR(created_at) as year, MONTH(created_at) as month, COUNT(*) as total')
+        ->groupBy('year', 'month')
+        ->orderBy('year', 'asc')
+        ->orderBy('month', 'asc')
+        ->get();
+    }
+
+    public static function getSalesByYear()
+    {
+        return User::selectRaw('YEAR(created_at) as year, COUNT(*) as total')
+        ->groupBy('year')
+        ->orderBy('year', 'asc')
+        ->get();
     }
 }
