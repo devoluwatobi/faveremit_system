@@ -284,7 +284,7 @@ Route::group(['middleware' => ['cors', 'json.response']], function () {
                     Route::get('index', 'index');
                     Route::get('users/index', 'userStatIndex');
                     Route::get('users/all', 'indexMethod');
-                    Route::post('users/graph', 'getUsersGraphMethod');
+                    Route::get('users/graph', 'getUsersGraphMethod');
                     Route::get('users-count', 'usersCountMethod');
                 });
             }); //end of notifications routes

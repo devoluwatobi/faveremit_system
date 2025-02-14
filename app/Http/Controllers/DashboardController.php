@@ -124,58 +124,52 @@ class DashboardController extends Controller
      */
     public function getUsersGraphMethod(Request $request): JsonResponse
     {
-        if ($request->input('type') == 'weekly') {
-            $usersByDay = $this->userModel->selectRaw('DAYNAME(created_at) as day, COUNT(*) as total')
-                ->whereBetween('created_at', [Carbon::now()->startOfWeek(), Carbon::now()->endOfWeek()])
-                ->groupBy('day')
-                ->orderByRaw('FIELD(DAYNAME(created_at), "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday")')
-                ->get()
-                ->mapWithKeys(fn($item) => [$item->day => $item->total]);
-            return response()->json([
-                'message' => "All data fetched successfully",
-                'data' => $usersByDay,
-                'success' => true
-            ], Response::HTTP_OK);
-        } elseif ($request->input('type') == 'monthly') {
-            $usersByWeeks = $this->userModel->selectRaw("
-                        CASE
-                            WHEN DAY(created_at) BETWEEN 1 AND 7 THEN 'Week 1'
-                            WHEN DAY(created_at) BETWEEN 8 AND 14 THEN 'Week 2'
-                            WHEN DAY(created_at) BETWEEN 15 AND 21 THEN 'Week 3'
-                            WHEN DAY(created_at) BETWEEN 22 AND 31 THEN 'Week 4'
-                        END as week_group, COUNT(*) as total
-                    ")
-                ->whereMonth('created_at', Carbon::now()->month)
-                ->whereYear('created_at', Carbon::now()->year)
-                ->groupBy('week_group')
-                ->orderBy('week_group')
-                ->get()
-                ->mapWithKeys(fn($item) => [$item->week_group => $item->total]);
-            return response()->json([
-                'message' => "All data fetched successfully",
-                'data' => $usersByWeeks,
-                'success' => true
-            ], Response::HTTP_OK);
-        } else {
-            $usersByMonth = $this->userModel->selectRaw('MONTH(created_at) as month, COUNT(*) as total')
-                ->whereYear('created_at', Carbon::now()->year)
-                ->groupBy('month')
-                ->orderBy('month')
-                ->get()
-                ->mapWithKeys(function ($item) {
-                    return [Carbon::createFromFormat('!m', $item->month)->format('F') => $item->total];
-                });
+  
+        $usersByDay = $this->userModel->selectRaw('DAYNAME(created_at) as day, COUNT(*) as total')
+            ->whereBetween('created_at', [Carbon::now()->startOfWeek(), Carbon::now()->endOfWeek()])
+            ->groupBy('day')
+            ->orderByRaw('FIELD(DAYNAME(created_at), "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday")')
+            ->get()
+            ->mapWithKeys(fn($item) => [$item->day => $item->total]);
+        
+        $usersByWeeks = $this->userModel->selectRaw("
+                    CASE
+                        WHEN DAY(created_at) BETWEEN 1 AND 7 THEN 'Week 1'
+                        WHEN DAY(created_at) BETWEEN 8 AND 14 THEN 'Week 2'
+                        WHEN DAY(created_at) BETWEEN 15 AND 21 THEN 'Week 3'
+                        WHEN DAY(created_at) BETWEEN 22 AND 31 THEN 'Week 4'
+                    END as week_group, COUNT(*) as total
+                ")
+            ->whereMonth('created_at', Carbon::now()->month)
+            ->whereYear('created_at', Carbon::now()->year)
+            ->groupBy('week_group')
+            ->orderBy('week_group')
+            ->get()
+            ->mapWithKeys(fn($item) => [$item->week_group => $item->total]);
 
-            $months = collect(range(1, 12))->mapWithKeys(function ($month) use ($usersByMonth) {
-                $monthName = Carbon::createFromFormat('!m', $month)->format('F');
-                return [$monthName => $usersByMonth[$monthName] ?? 0];
+        $usersByMonth = $this->userModel->selectRaw('MONTH(created_at) as month, COUNT(*) as total')
+            ->whereYear('created_at', Carbon::now()->year)
+            ->groupBy('month')
+            ->orderBy('month')
+            ->get()
+            ->mapWithKeys(function ($item) {
+                return [Carbon::createFromFormat('!m', $item->month)->format('F') => $item->total];
             });
-            return response()->json([
-                'message' => "All data fetched successfully",
-                'data' => $months,
-                'success' => true
-            ], Response::HTTP_OK);
-        }
+
+        $months = collect(range(1, 12))->mapWithKeys(function ($month) use ($usersByMonth) {
+            $monthName = Carbon::createFromFormat('!m', $month)->format('F');
+            return [$monthName => $usersByMonth[$monthName] ?? 0];
+        });
+        return response()->json([
+            'message' => "All data fetched successfully",
+            'data' => [
+                'yearly' => $months,
+                'monthly' => $usersByMonth,
+                'weekly' => $usersByDay
+            ],
+            'success' => true
+        ], Response::HTTP_OK);
+        
     }
 
 
@@ -275,7 +269,7 @@ class DashboardController extends Controller
 
             $giftTran->title = $currency->symbol . $giftTran->card_value . ' ' . $giftCard->title . ' ' . ($giftTran->qty == 1 ? "" : (" x" . ($giftTran->status == 0 ? $giftTran->qty : $giftTran->approved_qty)));
             $giftTran->total_amount = number_format((float) $giftTran->card_value * $giftTran->rate * ($giftTran->status == 0 ? ($giftTran->qty ?? 1) : $giftTran->approved_qty), 2);
-            $giftTran->icon =  env('APP_URL') . $giftCard->brand_logo;
+            $giftTran->icon =  config('app.url'). $giftCard->brand_logo;
             $giftTran->type =  'giftcard';
             $giftTran->user =  User::where('id', $giftTran->user_id)->first()->first_name;
             $giftTran->status_string = $status;
