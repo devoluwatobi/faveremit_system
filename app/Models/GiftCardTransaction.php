@@ -63,13 +63,41 @@ class GiftCardTransaction extends Model
         return $this->belongsTo(GiftCard::class);
     }
 
-    /**
-     * Get the service that owns the GiftCardTransaction
-     *
-     * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
-     */
-    public function service()
+    public static function getSalesForLast7Days()
     {
-        return $this->belongsTo(Service::class);
+        $sevenDaysAgo = \Carbon\Carbon::now()->subDays(7);
+        return GiftCardTransaction::where("status", 1)->where('created_at', '>=', $sevenDaysAgo)->selectRaw('DATE(created_at) as day, SUM(rate * card_value) as total')
+        ->groupBy('day')
+        ->get();
+    }
+
+    public static function getSalesForLast4Weeks()
+    {
+        $fourWeeksAgo = \Carbon\Carbon::now()->subWeeks(4);
+
+        return GiftCardTransaction::where("status", 1)
+        ->where('created_at', '>=', $fourWeeksAgo)
+            ->selectRaw('YEAR(created_at) as year, WEEK(created_at, 1) as week, SUM(rate * card_value * qty) as total')
+            ->groupBy('year', 'week')
+            ->orderBy('year', 'asc')
+            ->orderBy('week', 'asc')
+            ->get();
+    }
+
+    public static function getSalesByMonth()
+    {
+        return GiftCardTransaction::where("status", 1)->selectRaw('YEAR(created_at) as year, MONTH(created_at) as month, SUM(rate * card_value * qty) as total')
+        ->groupBy('year', 'month')
+        ->orderBy('year', 'asc')
+        ->orderBy('month', 'asc')
+        ->get();
+    }
+
+    public static function getSalesByYear()
+    {
+        return GiftCardTransaction::where("status", 1)->selectRaw('YEAR(created_at) as year, SUM(rate * card_value * qty) as total')
+        ->groupBy('year')
+        ->orderBy('year', 'asc')
+        ->get();
     }
 }

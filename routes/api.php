@@ -206,14 +206,12 @@ Route::group(['middleware' => ['cors', 'json.response']], function () {
     Route::name('admin.')->prefix('admin')->group(function () {
         Route::post('/login', [App\Http\Controllers\Auth\ApiAuthController::class, 'loginAdmin']);
         Route::post('/login-email', [App\Http\Controllers\Auth\ApiAuthController::class, 'loginEmailAdmin']);
-        // Route::post('/update-old-users', [ApiAuthController::class, 'addOldAccounts']);
+
 
         Route::group(['middleware' => ['auth:api']], function () {
             Route::get('/home', [App\Http\Controllers\HomeController::class, 'adminIndex']);
             Route::get('/transactions', [App\Http\Controllers\HomeController::class, 'adminTrans']);
             Route::get('/user-transactions/{id}', [App\Http\Controllers\HomeController::class, 'allUserTrans']);
-          //  Route::get('/prev-transactions', [App\Http\Controllers\HomeController::class, 'adminPrevTrans']);
-        //    Route::get('/transactions/{id}', [App\Http\Controllers\HomeController::class, 'singleAdminTrans']);
             Route::post('/update-fcm', [App\Http\Controllers\Auth\ApiAuthController::class, 'updateFcm']);
 
             /* gitfcard */
@@ -283,6 +281,7 @@ Route::group(['middleware' => ['cors', 'json.response']], function () {
 
             Route::prefix('dashboard')->group(function () {  // notifications routes
                 Route::controller(App\Http\Controllers\DashboardController::class)->group(function () {
+                    Route::get('index', 'index');
                     Route::get('users/all', 'indexMethod');
                     Route::post('users/graph', 'getUsersGraphMethod');
                     Route::get('users-count', 'usersCountMethod');
